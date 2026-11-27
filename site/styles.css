@@ -88,6 +88,7 @@ a:hover { color: var(--accent); }
 .record-meta { display: flex; gap: 28px; margin: 0; padding: 10px 14px; border-bottom: 1px solid var(--rule); font-size: 13px; }
 .record-meta div { display: flex; gap: 8px; }
 .record-meta dt { color: var(--muted); }
+.record-full { margin: 0; padding: 8px 14px; border-bottom: 1px solid var(--rule); font-size: 13px; color: var(--muted); }
 .record-meta dd { margin: 0; }
 .record-value { display: flex; gap: 12px; align-items: flex-start; justify-content: space-between; padding: 12px 14px; }
 .record-value code { word-break: break-all; font-size: 14px; line-height: 1.5; }

@@ -5,6 +5,7 @@ import { renderSingle, bulkTable, fillBulkRow, copyText } from "./render.js";
 import { singleReport, bulkReport, allFixes, sortWorstFirst } from "./report.js";
 
 const MAX_DOMAINS = 50;
+const BULK_PARALLEL = 3;
 const $ = (id) => document.getElementById(id);
 
 const state = { resolver: "cloudflare", running: false };
@@ -68,20 +69,28 @@ async function runBulk(text) {
   state.running = true;
   history.replaceState(null, "", location.pathname);
   const ui = bulkTable($("results"), domains);
-  const dns = createResolver({ resolver: resolverChoice(), concurrency: 4 });
+  const dns = createResolver({ resolver: resolverChoice(), concurrency: 8 });
   const results = [];
   let done = 0;
   const skipped = bad.length ? ` Skipped ${bad.length} that didn't look like domains.` : "";
   setStatus(`Checking 0 of ${domains.length}…${skipped}`);
-  for (const d of domains) {
-    let r;
-    try { r = await checkDomain(dns, d, { selectors: selectors() }); }
-    catch { r = { domain: d, error: "failed" }; }
-    results.push(r);
-    fillBulkRow(ui.rows.get(d), r);
-    done++;
-    setStatus(`Checking ${done} of ${domains.length}…${skipped}`);
-  }
+  // Three domains at a time. Each one already runs its own lookups in parallel,
+  // so more than this mostly queues up behind the DNS service's rate limits.
+  const queue = [...domains];
+  const sel = selectors();
+  const worker = async () => {
+    while (queue.length) {
+      const d = queue.shift();
+      let r;
+      try { r = await checkDomain(dns, d, { selectors: sel }); }
+      catch { r = { domain: d, error: "failed" }; }
+      results.push(r);
+      fillBulkRow(ui.rows.get(d), r);
+      done++;
+      setStatus(`Checking ${done} of ${domains.length}…${skipped}`);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(BULK_PARALLEL, domains.length) }, worker));
   // Worst first.
   for (const r of sortWorstFirst(results)) ui.tbody.append(ui.rows.get(r.domain));
   setStatus(`Checked ${domains.length} domains with ${dns.lookups} DNS lookups through ${dns.resolverName}.${skipped}`);

@@ -29,13 +29,21 @@ function looksLikeDkim(txt) {
   return /(^|;)\s*(v=DKIM1|p=)/i.test(txt);
 }
 
-// Returns [{ selector, record, parsed }]
+// A selector nobody would ever use. If it answers, the domain has a catch-all
+// (wildcard) record that answers every selector the same way.
+export const PROBE_SELECTOR = "mailcheck-probe-7q2x";
+
+// Returns { keys: [{ selector, record, parsed }], wildcard: { record, parsed } | null }.
+// Selectors that only return the catch-all record are left out of keys.
 export async function findDkim(dns, domain, extra = []) {
   const names = [...new Set([...extra.map((s) => s.trim().toLowerCase()).filter(Boolean), ...COMMON_SELECTORS])];
-  const results = await Promise.all(names.map(async (sel) => {
+  const lookup = async (sel) => {
     const r = await dns.txt(`${sel}._domainkey.${domain}`);
     const rec = r.values.find(looksLikeDkim);
     return rec ? { selector: sel, record: rec, parsed: parseDkim(rec) } : null;
-  }));
-  return results.filter(Boolean);
+  };
+  const [probe, ...results] = await Promise.all([lookup(PROBE_SELECTOR), ...names.map(lookup)]);
+  const wildcard = probe ? { record: probe.record, parsed: probe.parsed } : null;
+  const keys = results.filter(Boolean).filter((k) => !wildcard || k.record !== wildcard.record);
+  return { keys, wildcard };
 }

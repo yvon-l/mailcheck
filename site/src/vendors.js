@@ -6,6 +6,9 @@
 export const SENDERS = [
   // Mailbox providers
   { match: "_spf.google.com", name: "Google Workspace", kind: "Mailbox provider" },
+  { match: "_netblocks.google.com", name: "Google Workspace", kind: "Mailbox provider" },
+  { match: "_netblocks2.google.com", name: "Google Workspace", kind: "Mailbox provider" },
+  { match: "_netblocks3.google.com", name: "Google Workspace", kind: "Mailbox provider" },
   { match: "spf.protection.outlook.com", name: "Microsoft 365", kind: "Mailbox provider" },
   { match: "spf.protection.outlook.de", name: "Microsoft 365 (Germany)", kind: "Mailbox provider" },
   { match: "outlook.com", name: "Microsoft Outlook.com", kind: "Mailbox provider" },
@@ -38,13 +41,14 @@ export const SENDERS = [
   { match: "_spf.elasticemail.com", name: "Elastic Email", kind: "Sending service" },
   { match: "spf.sendinblue.com", name: "Brevo", kind: "Marketing email" },
   { match: "spf.brevo.com", name: "Brevo", kind: "Marketing email" },
-  { match: "servers.mcsv.net", name: "Mailchimp", kind: "Marketing email" },
+  { match: "mcsv.net", name: "Mailchimp", kind: "Marketing email" },
   { match: "spf.mandrillapp.com", name: "Mailchimp Transactional (Mandrill)", kind: "Sending service" },
   { match: "spf.constantcontact.com", name: "Constant Contact", kind: "Marketing email" },
   { match: "_spf.createsend.com", name: "Campaign Monitor", kind: "Marketing email" },
   { match: "_spf.mlsend.com", name: "MailerLite", kind: "Marketing email" },
   { match: "hubspotemail.net", name: "HubSpot", kind: "Marketing email" },
   { match: "mktomail.com", name: "Marketo", kind: "Marketing email" },
+  { match: "pardot.com", name: "Salesforce Pardot", kind: "Marketing email" },
 
   // Business tools that send as you
   { match: "_spf.salesforce.com", name: "Salesforce", kind: "Business tool" },
@@ -53,6 +57,7 @@ export const SENDERS = [
   { match: "email.freshdesk.com", name: "Freshdesk", kind: "Support tool" },
   { match: "helpscoutemail.com", name: "Help Scout", kind: "Support tool" },
   { match: "_spf.atlassian.net", name: "Atlassian (Jira, Confluence)", kind: "Business tool" },
+  { match: "stspg-customer.com", name: "Atlassian Statuspage", kind: "Business tool" },
   { match: "shops.shopify.com", name: "Shopify", kind: "Business tool" },
 ];
 

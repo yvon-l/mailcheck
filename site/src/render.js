@@ -59,6 +59,7 @@ function recordBlock(fix) {
       el("div", {}, el("dt", { text: "Name" }), el("dd", { class: "mono", text: fix.host })),
       el("div", {}, el("dt", { text: "Type" }), el("dd", { class: "mono", text: fix.type })),
     ),
+    fix.host !== "@" && fix.host !== "_dmarc" ? el("p", { class: "record-full", text: `Full name: ${fix.name}. Most DNS providers want just the part before your domain, ${fix.host}.` }) : null,
     el("div", { class: "record-value" },
       el("code", { class: "mono", text: fix.value }),
       copyButton(fix.value),
@@ -73,6 +74,10 @@ function fixFor(result, finding) {
   return null;
 }
 
+function gapsIn(result) {
+  return result.findings.some((f) => ["risk", "broken", "missing"].includes(f.status) || (f.status === "work" && !f.tidy));
+}
+
 function verdictCard(result) {
   const v = VERDICT[result.verdict];
   const tone = result.verdict.toLowerCase().includes("locked") ? "good" : result.verdict.toLowerCase().includes("open") ? "risk" : "work";
@@ -84,7 +89,7 @@ function verdictCard(result) {
     el("p", { class: "verdict-line", text: v.line }),
     result.parked ? el("p", { class: "verdict-note", text: "This domain has no mail servers and no senders, so it's treated as one that doesn't send email." }) : null,
     top ? el("div", { class: "first-fix" },
-      el("p", { class: "first-fix-h", text: "Fix this first" }),
+      el("p", { class: "first-fix-h", text: top.tidy && !gapsIn(result) ? "Worth tidying" : "Fix this first" }),
       el("p", { class: "first-fix-title", text: top.title }),
       el("p", { class: "first-fix-detail", text: top.detail }),
       topFix ? recordBlock(topFix) : null,

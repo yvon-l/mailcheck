@@ -236,3 +236,126 @@ test("a flattened SPF isn't accused of leaving out the mail provider", async () 
   assert.ok(r.findings.find((f) => f.status === "info" && /lists addresses instead/.test(f.title)));
   assert.equal(r.fixes.spf, undefined);
 });
+
+// ---- Found in live testing, November 2026 ----
+
+import { COMMON_SELECTORS, PROBE_SELECTOR } from "../site/src/dkim.js";
+import { hostFor } from "../site/src/check.js";
+
+// The fake DNS has no wildcards, so answer every selector (and the probe) by hand.
+function wildcardDkim(domain, value) {
+  const z = {};
+  for (const s of [...COMMON_SELECTORS, PROBE_SELECTOR]) z[`${s}._domainkey.${domain}`] = { TXT: [value] };
+  return z;
+}
+
+test("a catch-all revoked DKIM record doesn't make a parked domain look like a sender", async () => {
+  const r = await run({
+    "example.test": { A: ["1.1.1.1"], TXT: ["v=spf1 -all"], MX: ["0 ."] },
+    "_dmarc.example.test": { TXT: ["v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s"] },
+    ...wildcardDkim("example.test", "v=DKIM1; p="),
+  }, "example.test");
+  assert.equal(r.sending, false);
+  assert.equal(r.parked, true);
+  assert.equal(r.verdict, "parkedLocked");
+  assert.equal(r.dkim.length, 0, "catch-all answers aren't listed as keys");
+  assert.ok(r.dkimWildcard.parsed.revoked);
+  assert.equal(check(r, "DKIM").status, "good");
+  assert.match(check(r, "DKIM").summary, /catch-all/);
+  assert.equal(check(r, "BIMI").status, "na");
+});
+
+test("revoked keys on named selectors don't count as sending either", async () => {
+  const r = await run({
+    "old.example": { A: ["1.1.1.1"], TXT: ["v=spf1 -all"] },
+    "_dmarc.old.example": { TXT: ["v=DMARC1; p=reject"] },
+    "google._domainkey.old.example": { TXT: ["v=DKIM1; k=rsa; p="] },
+  }, "old.example");
+  assert.equal(r.sending, false);
+  assert.equal(r.verdict, "parkedLocked");
+  assert.equal(check(r, "DKIM").status, "good");
+});
+
+test("a real key next to a catch-all is still found", async () => {
+  const r = await run({
+    "mixed-dkim.example": { A: ["1.1.1.1"], TXT: ["v=spf1 include:_spf.google.com -all"], MX: ["1 aspmx.l.google.com."] },
+    "_dmarc.mixed-dkim.example": { TXT: ["v=DMARC1; p=reject"] },
+    ...wildcardDkim("mixed-dkim.example", "v=DKIM1; p="),
+    "google._domainkey.mixed-dkim.example": { TXT: [`v=DKIM1; k=rsa; p=${KEY2048}`] },
+  }, "mixed-dkim.example");
+  assert.deepEqual(r.dkim.map((k) => k.selector), ["google"]);
+  assert.equal(r.verdict, "locked");
+});
+
+test("record names for subdomains never say @", () => {
+  assert.equal(hostFor("example.com"), "@");
+  assert.equal(hostFor("example.com", "_dmarc"), "_dmarc");
+  assert.equal(hostFor("mail.example.com"), "mail");
+  assert.equal(hostFor("mail.example.com", "_dmarc"), "_dmarc.mail");
+  assert.equal(hostFor("a.b.example.co.uk", "_dmarc"), "_dmarc.a.b");
+  assert.equal(hostFor("example.co.uk"), "@");
+});
+
+test("a non-sending subdomain under a reject policy is locked, and its fix names the subdomain", async () => {
+  const r = await run({
+    "tools.parent.example": { A: ["1.1.1.1"] },
+    "parent.example": { A: ["1.1.1.1"], TXT: ["v=spf1 include:_spf.google.com -all"] },
+    "_dmarc.parent.example": { TXT: ["v=DMARC1; p=reject"] },
+  }, "tools.parent.example");
+  assert.equal(r.parked, true);
+  assert.equal(r.verdict, "parkedLocked");
+  assert.equal(r.fixes.spf.host, "tools");
+  assert.equal(r.fixes.spf.value, "v=spf1 -all");
+  assert.equal(r.fixes.dmarc, undefined, "the inherited reject policy is already right");
+  const f = finding(r, "doesn't send email");
+  assert.equal(f.status, "work");
+  assert.equal(f.tidy, true);
+});
+
+test("a subdomain with no DMARC anywhere gets a _dmarc.sub fix", async () => {
+  const r = await run({ "shop.bare.example": { A: ["1.1.1.1"] }, "bare.example": { A: ["1.1.1.1"] } }, "shop.bare.example");
+  assert.equal(r.verdict, "parkedOpen");
+  assert.equal(r.fixes.dmarc.host, "_dmarc.shop");
+  assert.equal(r.fixes.spf.host, "shop");
+  assert.equal(r.fixes.nullMx.host, "shop");
+});
+
+test("housekeeping doesn't lower the verdict when DMARC rejects", async () => {
+  const r = await run({
+    "tidy.example": { A: ["1.1.1.1"], TXT: ["v=spf1 include:_spf.google.com include:mystery.example -all"], MX: ["1 aspmx.l.google.com."] },
+    "mystery.example": { TXT: ["v=spf1 ip4:9.9.9.9 -all"] },
+    "_dmarc.tidy.example": { TXT: ["v=DMARC1; p=reject; rua=mailto:d@tidy.example"] },
+    "selector1._domainkey.tidy.example": { TXT: [`v=DKIM1; k=rsa; p=${KEY1024}`] },
+  }, "tidy.example");
+  assert.equal(r.verdict, "locked");
+  assert.equal(r.tidy, 1, "the 1024-bit key is worth tidying");
+  assert.equal(finding(r, "recognises").status, "info", "an unknown sender is a note, not a problem");
+});
+
+test("lookup headroom wording matches the count", async () => {
+  // 9 lookups: Google (4) + five single includes.
+  const singles = ["a", "b", "c", "d", "e"].map((x) => `${x}.inc.example`);
+  const zone = {
+    "near.example": { A: ["1.1.1.1"], TXT: [`v=spf1 include:_spf.google.com ${singles.map((s) => `include:${s}`).join(" ")} -all`] },
+    "_dmarc.near.example": { TXT: ["v=DMARC1; p=reject"] },
+  };
+  for (const s of singles) zone[s] = { TXT: ["v=spf1 ip4:10.0.0.1 -all"] };
+  const r = await run(zone, "near.example");
+  assert.equal(r.spf.tree.lookups, 9);
+  const f = finding(r, "9 of its 10");
+  assert.match(f.detail, /room for one more/);
+  assert.equal(f.tidy, true);
+  assert.equal(r.verdict, "locked");
+});
+
+test("Google's netblocks, Mailchimp's other servers, Pardot and Statuspage are recognised", async () => {
+  const r = await run({
+    "vendors.example": { A: ["1.1.1.1"], TXT: ["v=spf1 include:_netblocks.google.com include:spf1.mcsv.net include:aspmx.pardot.com include:stspg-customer.com -all"] },
+    "spf1.mcsv.net": { TXT: ["v=spf1 ip4:205.201.128.0/20 -all"] },
+    "aspmx.pardot.com": { TXT: ["v=spf1 ip4:136.147.176.0/20 -all"] },
+    "stspg-customer.com": { TXT: ["v=spf1 ip4:52.0.0.1 -all"] },
+    "_dmarc.vendors.example": { TXT: ["v=DMARC1; p=reject"] },
+  }, "vendors.example");
+  assert.equal(r.spf.senders.filter((s) => s.status === "unknown").length, 0);
+  assert.deepEqual(r.spf.senders.map((s) => s.name).sort(), ["Atlassian Statuspage", "Google Workspace", "Mailchimp", "Salesforce Pardot"]);
+});
