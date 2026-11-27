@@ -163,18 +163,33 @@ export function sendersFrom(tree, domain) {
         break;
       }
       case "ip4":
-      case "ip6":
-        rows.push({ name: "Specific servers", how: `${term.mechanism}:${term.value}${term.cidr}`, lookups: 0, status: "address", note: "", address: term.value, cidr: term.cidr });
+      case "ip6": {
+        // One row for all the address ranges, however many there are.
+        const range = `${term.mechanism}:${term.value}${term.cidr}`;
+        const existing = rows.find((r) => r.status === "address");
+        if (existing) {
+          existing.ranges.push(range);
+          existing.how = `${existing.ranges[0]} and ${existing.ranges.length - 1} more`;
+          existing.note = `${existing.ranges.length} address ranges listed directly in the record.`;
+        } else {
+          rows.push({ name: "Specific servers", how: range, lookups: 0, status: "address", note: "", ranges: [range] });
+        }
         break;
+      }
       case "a":
         rows.push({ name: term.value ? `Servers at ${term.value}` : "Your website's servers", how: term.raw, lookups: 1, status: "known", note: "Whatever this name points to can send as you." });
         break;
       case "mx":
         rows.push({ name: "Your incoming mail servers", how: term.raw, lookups: 1, status: "known", note: "" });
         break;
-      case "exists":
-        rows.push({ name: "Custom rule", how: term.raw, lookups: 1, status: "unknown", note: "An advanced rule. Make sure you know who set it up." });
+      case "exists": {
+        // Some services use exists with a macro, like Salesforce's %{i}._spf.mta.salesforce.com.
+        const target = term.value.replace(/^.*%\{[^}]*\}\.?/, "");
+        const v = target ? senderFor(target) : null;
+        if (v) rows.push({ name: v.name, how: term.raw, lookups: 1, status: "known", note: "", kind: v.kind });
+        else rows.push({ name: "Custom rule", how: term.raw, lookups: 1, status: "unknown", note: "An advanced rule. Make sure you know who set it up." });
         break;
+      }
       case "ptr":
         rows.push({ name: "Reverse DNS rule", how: term.raw, lookups: 1, status: "unknown", note: "\"ptr\" is slow, unreliable, and the SPF standard says not to use it." });
         break;

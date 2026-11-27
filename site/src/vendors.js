@@ -48,6 +48,7 @@ export const SENDERS = [
 
   // Business tools that send as you
   { match: "_spf.salesforce.com", name: "Salesforce", kind: "Business tool" },
+  { match: "_spf.mta.salesforce.com", name: "Salesforce", kind: "Business tool" },
   { match: "mail.zendesk.com", name: "Zendesk", kind: "Support tool" },
   { match: "email.freshdesk.com", name: "Freshdesk", kind: "Support tool" },
   { match: "helpscoutemail.com", name: "Help Scout", kind: "Support tool" },

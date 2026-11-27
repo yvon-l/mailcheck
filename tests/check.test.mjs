@@ -211,3 +211,16 @@ test("a redirect is followed and its senders listed, and weak DKIM keys are grou
   assert.equal(dk.length, 1);
   assert.match(dk[0].title, /2 DKIM keys .* "s1" and "s2"/);
 });
+
+test("IP ranges collapse into one row, and Salesforce's exists rule is recognised", async () => {
+  const r = await run({
+    "ips.example": { A: ["1.1.1.1"], TXT: ["v=spf1 ip4:10.0.0.0/24 ip4:10.0.1.0/24 ip6:2001:db8::/32 exists:%{i}._spf.mta.salesforce.com -all"] },
+    "_dmarc.ips.example": { TXT: ["v=DMARC1; p=reject"] },
+  }, "ips.example");
+  const addr = r.spf.senders.filter((s) => s.status === "address");
+  assert.equal(addr.length, 1);
+  assert.equal(addr[0].how, "ip4:10.0.0.0/24 and 2 more");
+  const sf = r.spf.senders.find((s) => s.how.startsWith("exists:"));
+  assert.equal(sf.name, "Salesforce");
+  assert.equal(r.spf.senders.filter((s) => s.status === "unknown").length, 0);
+});
