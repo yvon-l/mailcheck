@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>mailcheck · who can send email as your domain</title>
+<meta name="description" content="Check who can send email as your domain, whether it's locked down, and get the exact records to fix it. Free, open source, runs in your browser.">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script type="module" src="src/app.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<div class="wrap">
+  <header class="site-header">
+    <a class="brand" href="https://kimberly-wood.com/">~/kywood<span>_</span></a>
+    <nav class="nav" aria-label="Main">
+      <a href="https://kimberly-wood.com/tools/">Tools</a>
+      <a href="https://github.com/yvon-l/mailcheck">Source</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <p class="prompt">$ mailcheck</p>
+    <h1 class="display h-lg">Who can send email as you?</h1>
+    <p class="lede">Type a domain to see who is allowed to send email as it, whether that's locked down, and the exact records to fix it. Free, open source, and it runs in your browser.</p>
+
+    <form id="single" class="check-form" autocomplete="off" novalidate>
+      <label class="sr" for="domain">Domain</label>
+      <input id="domain" name="domain" type="text" inputmode="url" spellcheck="false" autocapitalize="off" placeholder="example.com" required>
+      <button class="btn btn-solid" type="submit">Check</button>
+    </form>
+
+    <form id="bulk" class="check-form bulk" autocomplete="off" novalidate hidden>
+      <label class="sr" for="domains">Domains, one per line</label>
+      <textarea id="domains" name="domains" rows="6" spellcheck="false" autocapitalize="off" placeholder="example.com&#10;example.net&#10;old-brand.com"></textarea>
+      <button class="btn btn-solid" type="submit">Check all</button>
+    </form>
+
+    <div class="form-links">
+      <button type="button" class="linkish" id="toggle-mode" aria-controls="single bulk">Check several domains</button>
+      <details class="options">
+        <summary>DKIM selector</summary>
+        <p>DKIM keys can only be found by name. This page tries the common ones. If yours uses another, type it here.</p>
+        <label class="sr" for="selector">DKIM selector</label>
+        <input id="selector" type="text" spellcheck="false" autocapitalize="off" placeholder="e.g. s2024">
+      </details>
+    </div>
+
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <div id="results"></div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="sees">
+      <h2>What this page sees</h2>
+      <p>The domains you check are sent to <span id="resolver-name">Cloudflare</span>'s public DNS service to look up their records. Nothing is sent to me, nothing is stored, and there are no cookies or analytics.</p>
+      <label for="resolver">DNS service</label>
+      <select id="resolver">
+        <option value="cloudflare">Cloudflare (1.1.1.1)</option>
+        <option value="google">Google (8.8.8.8)</option>
+      </select>
+    </div>
+    <p class="fine">Made by <a href="https://kimberly-wood.com/">K.Y. Wood</a> · <a href="https://github.com/yvon-l/mailcheck">source on GitHub</a> · MIT license · Found a mistake? <a href="https://github.com/yvon-l/mailcheck/issues">Open an issue</a>.</p>
+  </footer>
+</div>
+</body>
+</html>

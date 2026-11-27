@@ -1,0 +1,13 @@
+{
+  "name": "mailcheck",
+  "private": true,
+  "description": "Tests for mailcheck. The site itself is the plain files in site/ and needs no build.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 --test-timeout=60000 tests/*.test.mjs",
+    "serve": "node tests/serve.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
