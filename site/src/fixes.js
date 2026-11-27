@@ -1,6 +1,6 @@
 // Writes the corrected records. Everything here is a rule written in advance:
 // the same records in always give the same fix out.
-import { matchSuffix } from "./vendors.js";
+import { matchSuffix, senderFor } from "./vendors.js";
 import { LOOKUP_LIMIT } from "./spf.js";
 
 function treeHas(node, pattern) {
@@ -9,9 +9,27 @@ function treeHas(node, pattern) {
   return node.children.some((c) => treeHas(c, pattern));
 }
 
+// Addresses listed in the domain's own records (its record, its own lists, a redirect
+// target), not the ones inside a recognised vendor's include.
+function treeHasAddresses(node, domain) {
+  if (!node) return false;
+  if (node.parsed && node.parsed.terms.some((t) => t.mechanism === "ip4" || t.mechanism === "ip6")) return true;
+  return node.children
+    .filter((c) => !senderFor(c.domain) && (c.via === "redirect" || matchSuffix(c.domain, domain)))
+    .some((c) => treeHasAddresses(c, domain));
+}
+
+// "missing": the provider's include isn't anywhere in the tree and there are no raw
+// addresses that might cover it. "unsure": no include, but the record lists addresses
+// directly (a "flattened" SPF), so the provider may well be covered by those.
+export function providerSpfState(spfTree, provider) {
+  if (!provider || !provider.spf || !spfTree || !spfTree.root.parsed) return "ok";
+  if (treeHas({ domain: "", children: spfTree.root.children }, provider.spf)) return "ok";
+  return treeHasAddresses(spfTree.root, spfTree.root.domain) ? "unsure" : "missing";
+}
+
 export function providerMissingFromSpf(spfTree, provider) {
-  if (!provider || !provider.spf || !spfTree || !spfTree.root.parsed) return false;
-  return !treeHas({ domain: "", children: spfTree.root.children }, provider.spf);
+  return providerSpfState(spfTree, provider) === "missing";
 }
 
 // Returns { value, changes: [..], lookupsAfter, stillOver } or null when nothing needs changing.

@@ -224,3 +224,15 @@ test("IP ranges collapse into one row, and Salesforce's exists rule is recognise
   assert.equal(sf.name, "Salesforce");
   assert.equal(r.spf.senders.filter((s) => s.status === "unknown").length, 0);
 });
+
+test("a flattened SPF isn't accused of leaving out the mail provider", async () => {
+  const r = await run({
+    "flat.example": { A: ["1.1.1.1"], TXT: ["v=spf1 ip4:74.125.0.0/16 ip4:209.85.128.0/17 -all"], MX: ["1 aspmx.l.google.com."] },
+    "_dmarc.flat.example": { TXT: ["v=DMARC1; p=reject"] },
+    "google._domainkey.flat.example": { TXT: [`v=DKIM1; k=rsa; p=${KEY2048}`] },
+  }, "flat.example");
+  assert.equal(r.verdict, "locked");
+  assert.equal(r.findings.find((f) => /doesn't allow it to send/.test(f.title)), undefined);
+  assert.ok(r.findings.find((f) => f.status === "info" && /lists addresses instead/.test(f.title)));
+  assert.equal(r.fixes.spf, undefined);
+});

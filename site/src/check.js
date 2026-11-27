@@ -4,7 +4,7 @@ import { getSpf, expandSpf, sendersFrom, parseSpf, LOOKUP_LIMIT, VOID_LIMIT } fr
 import { getDmarc, effectivePolicy } from "./dmarc.js";
 import { findDkim } from "./dkim.js";
 import { providerForMx } from "./vendors.js";
-import { fixSpf, fixDmarc, providerMissingFromSpf, NULL_MX } from "./fixes.js";
+import { fixSpf, fixDmarc, providerSpfState, NULL_MX } from "./fixes.js";
 
 export const STATUS_LABEL = { good: "Good", work: "Needs work", broken: "Broken", missing: "Missing", risk: "Risk", info: "Not set up", na: "Not needed" };
 const SEVERITY = { risk: 0, broken: 1, missing: 2, work: 3, info: 4, good: 5, na: 6 };
@@ -150,10 +150,14 @@ function buildFindings(r) {
       if (spfStatus === "good") spfStatus = "work";
       add(r, { check: "SPF", status: "work", title: unknown.length === 1 ? "One sender in your SPF isn't one this page recognises" : `${unknown.length} senders in your SPF aren't ones this page recognises`, detail: "That can be fine, but make sure you know who each one is and that you still use them." });
     }
-    if (sending && mx.provider && providerMissingFromSpf(tree, mx.provider) && !mx.provider.forwardingOnly) {
+    const provState = sending && mx.provider && !mx.provider.forwardingOnly ? providerSpfState(tree, mx.provider) : "ok";
+    if (provState === "missing") {
       if (spfStatus === "good") spfStatus = "work";
       add(r, { check: "SPF", status: "work", title: `${mx.provider.name} handles your mail, but your SPF doesn't allow it to send`, detail: `Mail you send through ${mx.provider.name} may fail SPF checks.` });
+    } else if (provState === "unsure") {
+      add(r, { check: "SPF", status: "info", title: `Your SPF lists addresses instead of ${mx.provider.name}'s include`, detail: `That's fine if those addresses cover ${mx.provider.name}, but they go stale when it changes its servers. Its own include, ${mx.provider.spf}, keeps itself up to date.` });
     }
+
     if (!sending && all !== "-all" && spfStatus === "good") {
       spfStatus = "work";
       add(r, { check: "SPF", status: "work", title: "This domain doesn't send email, but its SPF doesn't say so firmly", detail: "Use v=spf1 -all, which tells receivers any mail from it is fake." });
