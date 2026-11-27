@@ -99,7 +99,7 @@ function sendersSection(result) {
   const body = rows.length
     ? el("table", { class: "senders" },
         el("thead", {}, el("tr", {}, el("th", { text: "Sender" }), el("th", { text: "Allowed by" }), el("th", { class: "num", text: "Lookups" }), el("th", { text: "Note" }))),
-        el("tbody", {}, rows.map((r) => el("tr", { class: `row-${r.status}` },
+        el("tbody", {}, rows.map((r) => el("tr", { class: `row-${r.status}${r.nested ? " nested" : ""}` },
           el("td", {}, el("strong", { text: r.name }), r.kind ? el("span", { class: "kind", text: r.kind }) : null),
           el("td", { class: "mono", text: r.how }),
           el("td", { class: "num", text: String(r.lookups) }),

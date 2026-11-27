@@ -188,12 +188,20 @@ export function sendersFrom(tree, domain) {
     const child = root.children.find((c) => c.via === "redirect");
     const v = senderFor(redirect);
     const dead = child && child.state === "nxdomain";
-    rows.push({
-      name: dead ? "Domain that doesn't exist" : v ? v.name : matchSuffix(redirect, domain) ? "Your own list" : "Unknown sender",
-      how: `redirect=${redirect}`, lookups: child ? child.lookups + 1 : 1,
-      status: dead ? "dangling" : v ? "known" : "unknown",
-      note: dead ? "Anyone who registers this domain can send as you." : "Your whole SPF policy comes from this record.",
-    });
+    if (dead) {
+      rows.push({ name: "Domain that doesn't exist", how: `redirect=${redirect}`, lookups: 1, status: "dangling", note: "Anyone who registers this domain can send as you." });
+    } else if (child && child.parsed) {
+      // Follow it: the senders that matter are the ones in the record it points to.
+      const inner = sendersFrom({ root: child }, domain).map((r) => ({ ...r, nested: true }));
+      rows.push({
+        name: v ? `Managed by ${v.name}` : "Managed elsewhere",
+        how: `redirect=${redirect}`, lookups: 1, status: "known", kind: "Your whole SPF record lives here",
+        note: inner.length ? "The senders below come from that record." : "That record allows no senders.",
+      });
+      rows.push(...inner);
+    } else {
+      rows.push({ name: "Unknown sender", how: `redirect=${redirect}`, lookups: 1, status: "unknown", note: "Your whole SPF policy comes from this record, and it couldn't be read." });
+    }
   }
   return rows;
 }

@@ -24,6 +24,7 @@ export const SENDERS = [
   // Email security gateways
   { match: "_netblocks.mimecast.com", name: "Mimecast", kind: "Email security" },
   { match: "mimecast.com", name: "Mimecast", kind: "Email security" },
+  { match: "_spf._d.mim.ec", name: "Mimecast", kind: "Hosted SPF" },
   { match: "pphosted.com", name: "Proofpoint", kind: "Email security" },
   { match: "spf.ess.barracudanetworks.com", name: "Barracuda", kind: "Email security" },
 

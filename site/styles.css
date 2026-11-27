@@ -154,3 +154,5 @@ select { min-height: 36px; font-size: 14px; padding: 0 10px; border-width: 1px; 
   .senders td.mono { word-break: break-all; }
 }
 @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+.senders tr.nested td:first-child { padding-left: 30px; }
+.senders tr.nested td:first-child strong::before { content: "\21B3  "; color: var(--muted); font-weight: 400; }

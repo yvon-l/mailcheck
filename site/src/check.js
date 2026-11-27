@@ -213,7 +213,15 @@ function buildFindings(r) {
     const weak = dkim.filter((k) => k.parsed.keyType === "rsa" && k.parsed.bits && k.parsed.bits < 2048 && !k.parsed.revoked);
     dkStatus = weak.length ? "work" : "good";
     dkSummary = dkim.map((k) => `${k.selector}${k.parsed.revoked ? " (revoked)" : k.parsed.keyType === "ed25519" ? " (Ed25519)" : k.parsed.bits ? ` (${k.parsed.bits}-bit)` : ""}`).join(", ");
-    for (const k of weak) add(r, { check: "DKIM", status: "work", title: `The DKIM key "${k.selector}" is ${k.parsed.bits}-bit`, detail: "1024-bit keys are now considered weak. Ask your provider for a 2048-bit key and switch to it." });
+    if (weak.length) {
+      const names = weak.map((k) => `"${k.selector}"`);
+      const list = names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+      add(r, {
+        check: "DKIM", status: "work",
+        title: weak.length === 1 ? `The DKIM key ${list} is ${weak[0].parsed.bits}-bit` : `${weak.length} DKIM keys are 1024-bit or smaller: ${list}`,
+        detail: "Keys under 2048 bits are now considered weak. Ask each provider for a 2048-bit key and switch to it.",
+      });
+    }
   }
   r.checks.push({ name: "DKIM", status: dkStatus, summary: dkSummary, record: dkim.map((k) => `${k.selector}._domainkey: ${k.record}`).join("\n") || null });
 

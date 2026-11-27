@@ -196,3 +196,18 @@ test("when the DNS service fails, it says so instead of guessing", async () => {
   const r = await run({ "flaky.example": { A: ["1.1.1.1"] }, "_dmarc.flaky.example": "SERVFAIL" }, "flaky.example");
   assert.ok(r.error);
 });
+
+test("a redirect is followed and its senders listed, and weak DKIM keys are grouped", async () => {
+  const r = await run({
+    "redir.example": { A: ["1.1.1.1"], TXT: ["v=spf1 redirect=abc._spf._d.mim.ec"], MX: ["10 aspmx.l.google.com."] },
+    "abc._spf._d.mim.ec": { TXT: ["v=spf1 include:_spf.google.com include:sendgrid.net -all"] },
+    "_dmarc.redir.example": { TXT: ["v=DMARC1; p=reject"] },
+    "s1._domainkey.redir.example": { TXT: [`v=DKIM1; k=rsa; p=${KEY1024}`] },
+    "s2._domainkey.redir.example": { TXT: [`v=DKIM1; k=rsa; p=${KEY1024}`] },
+  }, "redir.example");
+  assert.deepEqual(r.spf.senders.map((s) => s.name), ["Managed by Mimecast", "Google Workspace", "SendGrid"]);
+  assert.equal(r.spf.senders.filter((s) => s.status === "unknown").length, 0);
+  const dk = r.findings.filter((f) => f.check === "DKIM");
+  assert.equal(dk.length, 1);
+  assert.match(dk[0].title, /2 DKIM keys .* "s1" and "s2"/);
+});
