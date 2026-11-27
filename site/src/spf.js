@@ -209,7 +209,7 @@ export function sendersFrom(tree, domain) {
       // Follow it: the senders that matter are the ones in the record it points to.
       const inner = sendersFrom({ root: child }, domain).map((r) => ({ ...r, nested: true }));
       rows.push({
-        name: v ? `Managed by ${v.name}` : "Managed elsewhere",
+        name: v ? `Managed by ${v.name}` : matchSuffix(redirect, domain) ? "Your own SPF record" : "Managed elsewhere",
         how: `redirect=${redirect}`, lookups: 1, status: "known", kind: "Your whole SPF record lives here",
         note: inner.length ? "The senders below come from that record." : "That record allows no senders.",
       });

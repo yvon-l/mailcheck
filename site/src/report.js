@@ -28,7 +28,7 @@ export function singleReport(result, when = new Date()) {
   const date = when.toISOString().slice(0, 10);
   const checks = result.checks.map((c) => [c.name, STATUS_LABEL[c.status], c.summary]);
   const senders = result.spf.senders.map((s) => [s.name, s.how, s.note || ""]);
-  const findings = result.findings.map((f) => [STATUS_LABEL[f.status], f.title]);
+  const findings = result.findings.map((f) => [f.status === "info" ? "Note" : STATUS_LABEL[f.status], f.title]);
   const fixes = fixRows(result);
 
   const html = [

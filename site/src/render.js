@@ -139,7 +139,7 @@ function findingsSection(result) {
   return el("section", { class: "block", "aria-labelledby": "find-h" },
     el("h2", { id: "find-h", class: "block-h", text: "What needs attention" }),
     el("ul", { class: "findings" }, result.findings.map((f) => el("li", { class: `finding f-${f.status}` },
-      chip(f.status === "info" ? "info" : f.status),
+      f.status === "info" ? el("span", { class: "chip s-info", text: "Note" }) : chip(f.status),
       el("div", {},
         el("p", { class: "finding-title", text: f.title }),
         el("p", { class: "finding-detail", text: f.detail }),
